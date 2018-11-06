@@ -49,12 +49,24 @@ public class HSScanViewController: UIViewController {
             guard let strongSelf = self else { return }
             if isGranted {
                 strongSelf.startScan()
-                
             } else {
                 ScanPermission.goToSystemSetting()
             }
         }
     }
+    
+    public func resume() {
+        scanWorker.start()
+    }
+    
+    public func pause() {
+        scanWorker.stop()
+    }
+    
+    public func toggleFlash(on:Bool) {
+        scanWorker.toggleFlash(on: on)
+    }
+
 }
 
 
@@ -65,16 +77,15 @@ extension HSScanViewController {
     func startScan() {
         let defaultScanView = HSDefaultScanView(frame: self.view.frame)
         
-        scanWorker = ScanWorker(videoPreView: self.view, objType: scanCodeTypes, cropRect: defaultScanView.scanRect, success: { [weak self] (result) in
-            guard let strongSelf = self else { return }
-            strongSelf.handleScanResult(results: result)
+        scanWorker = ScanWorker(parent: self, videoPreView: self.view, objType: scanCodeTypes, cropRect: defaultScanView.scanRect, success: { (result, parent) in
+            parent?.handleScanResult(results: result)
         })
         self.view.addSubview(defaultScanView)
         scanWorker.start()
     }
     
     func handleScanResult(results: [ScanResult]) {
-        self.navigationController?.popViewController(animated: true)
+        //self.navigationController?.popViewController(animated: true)
         let result: ScanResult = results[0]
 
         delegate?.scanFinished(scanResult: result, error: nil)

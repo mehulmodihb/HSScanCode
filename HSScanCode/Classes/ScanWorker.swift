@@ -22,6 +22,8 @@ public struct ScanResult {
 
 public class ScanWorker: NSObject, AVCaptureMetadataOutputObjectsDelegate {
     
+    public static var regex: String = ""
+    
     /// Video capture device
     lazy var captureDevice: AVCaptureDevice = AVCaptureDevice.default(for: AVMediaType.video)!
     
@@ -39,16 +41,17 @@ public class ScanWorker: NSObject, AVCaptureMetadataOutputObjectsDelegate {
     var arrayResult: [ScanResult] = [];
     
     /// 扫码结果返回block
-    var successBlock: ([ScanResult]) -> Void
+    var successBlock: ([ScanResult], HSScanViewController?) -> Void
     
     /// 当前扫码结果是否处理
     var isNeedScanResult: Bool = true
     
-    
+    // ParentViewController
+    var viewController: HSScanViewController?
     // MARK: - Initialization
     
-    init(videoPreView: UIView, objType: [AVMetadataObject.ObjectType] = [.qr], cropRect: CGRect = .zero, success: @escaping ( ([ScanResult]) -> Void) ) {
-
+    init(parent: HSScanViewController? ,videoPreView: UIView, objType: [AVMetadataObject.ObjectType] = [.qr], cropRect: CGRect = .zero, success: @escaping ( ([ScanResult], HSScanViewController?) -> Void) ) {
+        viewController = parent
         successBlock = success
         requireMetadataObjects = objType
         super.init()
@@ -60,7 +63,6 @@ public class ScanWorker: NSObject, AVCaptureMetadataOutputObjectsDelegate {
             //errorDelegate?.barcodeScanner(self, didReceiveError: error)
             print("AVCaptureDeviceInput(): \(error)")
         }
-        
         
         captureSession.addOutput(output)
         output.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
@@ -81,6 +83,8 @@ public class ScanWorker: NSObject, AVCaptureMetadataOutputObjectsDelegate {
                 captureDevice.focusMode = .continuousAutoFocus
                 // 拉进镜头
                 captureDevice.videoZoomFactor = 1.5
+                
+                captureDevice.torchMode = .off
                 
                 captureDevice.unlockForConfiguration()
             }
@@ -106,7 +110,6 @@ public class ScanWorker: NSObject, AVCaptureMetadataOutputObjectsDelegate {
     }
 }
 
-
 // MARK: - Public Function
 
 extension ScanWorker {
@@ -122,6 +125,26 @@ extension ScanWorker {
             isNeedScanResult = false
             captureSession.stopRunning()
             NotificationCenter.default.removeObserver(self)
+        }
+    }
+    func toggleFlash(on:Bool) {
+        if captureSession.isRunning {
+            let device = captureDevice
+            do {
+                try device.lockForConfiguration()
+                if device.hasTorch {
+                    if on == true {
+                        device.torchMode = .on
+                    } else {
+                        device.torchMode = .off
+                    }
+                } else {
+                    print("Torch is not available")
+                }
+                device.unlockForConfiguration()
+            } catch {
+                print("Torch could not be used")
+            }
         }
     }
 }
@@ -145,16 +168,35 @@ extension ScanWorker {
             if let metadataObj = metadataObj as? AVMetadataMachineReadableCodeObject {
                 let codeType = metadataObj.type
                 let codeContent = metadataObj.stringValue
-                arrayResult.append(ScanResult(str: codeContent, barCodeType: codeType.rawValue))
+                if ScanWorker.regex.count > 0 {
+                    if (codeContent ?? "").isValidCode() {
+                        arrayResult.append(ScanResult(str: codeContent, barCodeType: codeType.rawValue))
+                    }
+                } else {
+                    arrayResult.append(ScanResult(str: codeContent, barCodeType: codeType.rawValue))
+                }
             }
         }
 
         if arrayResult.count > 0 {
             stop()
-            successBlock(arrayResult)
+            successBlock(arrayResult, viewController)
         } else {
             isNeedScanResult = true
         }
+    }
+}
+
+extension String {
+    func isValidNoteAddress() -> Bool {
+        let noteRegex = "^[N][a-km-zA-HJ-NP-Z1-9]{26,33}$"
+        let range = self.range(of: noteRegex, options:.regularExpression)
+        return range != nil ? true : false
+    }
+    func isValidCode() -> Bool {
+        let noteRegex = ScanWorker.regex
+        let range = self.range(of: noteRegex, options:.regularExpression)
+        return range != nil ? true : false
     }
 }
 
