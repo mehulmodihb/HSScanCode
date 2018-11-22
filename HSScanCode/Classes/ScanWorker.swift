@@ -115,8 +115,8 @@ public class ScanWorker: NSObject, AVCaptureMetadataOutputObjectsDelegate {
 extension ScanWorker {
     
     func start() {
+        isNeedScanResult = true
         if !captureSession.isRunning {
-            isNeedScanResult = true
             captureSession.startRunning()
         }
     }
@@ -179,7 +179,9 @@ extension ScanWorker {
         }
 
         if arrayResult.count > 0 {
-            stop()
+            if ScanWorker.regex.count > 0 {
+                stop()
+            }
             successBlock(arrayResult, viewController)
         } else {
             isNeedScanResult = true
