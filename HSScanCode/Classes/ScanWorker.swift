@@ -84,7 +84,9 @@ public class ScanWorker: NSObject, AVCaptureMetadataOutputObjectsDelegate {
                 // 拉进镜头
                 captureDevice.videoZoomFactor = 1.5
                 
-                captureDevice.torchMode = .off
+                if captureDevice.isTorchModeSupported(AVCaptureDevice.TorchMode.off) {
+                    captureDevice.torchMode = .off
+                }
                 
                 captureDevice.unlockForConfiguration()
             }
@@ -132,7 +134,7 @@ extension ScanWorker {
             let device = captureDevice
             do {
                 try device.lockForConfiguration()
-                if device.hasTorch {
+                if device.hasTorch, device.isTorchAvailable, device.isTorchModeSupported(AVCaptureDevice.TorchMode.off), device.isTorchModeSupported(AVCaptureDevice.TorchMode.on) {
                     if on == true {
                         device.torchMode = .on
                     } else {
