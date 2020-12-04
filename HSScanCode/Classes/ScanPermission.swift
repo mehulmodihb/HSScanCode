@@ -24,6 +24,8 @@ struct ScanPermission {
                     comletion(status == .authorized ? true : false)
                 }
             })
+        default:
+            comletion(false)    
         }
     }
     
@@ -40,6 +42,8 @@ struct ScanPermission {
                     comletion(status)
                 }
             })
+        default:
+            comletion(false)    
         }
     }
     
